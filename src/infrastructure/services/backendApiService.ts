@@ -65,7 +65,7 @@ export class BackendApiService {
    * Generate prospect message for a specific ID
    */
   async generateMessage(id: string): Promise<ProspectMessage> {
-    const response = await fetch(`${(await this.config).backendUrl}/prospectio/rest/v1/generate/message/${id}?=`, {
+    const response = await fetch(`${(await this.config).backendUrl}/prospectio/rest/v1/generate/message/${id}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json, text/event-stream',
