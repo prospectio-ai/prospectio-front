@@ -1,5 +1,5 @@
 import { Company } from "./company";
-import { Contact } from "./conatct";
+import { Contact } from "./contact";
 import { Job } from "./job";
 
 export interface LeadsResult {

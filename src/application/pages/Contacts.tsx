@@ -8,7 +8,7 @@ import { Button } from '@/application/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/application/components/ui/avatar';
 import { useToast } from '@/application/hooks/use-toast';
 import { BackendApiService } from '@/infrastructure/services/backendApiService';
-import { Contact } from '@/domain/entities/conatct';
+import { Contact } from '@/domain/entities/contact';
 import { ProspectMessage } from '@/domain/entities/prospect_message';
 
 export default function Contacts() {

@@ -2,7 +2,7 @@ import { Profile } from '@/domain/entities/profile';
 import { ProspectMessage } from '@/domain/entities/prospect_message';
 import { Job } from '@/domain/entities/job';
 import { Company } from '@/domain/entities/company';
-import { Contact } from '@/domain/entities/conatct';
+import { Contact } from '@/domain/entities/contact';
 import { ConfigRepository } from '@/infrastructure/services/configRepository';
 
 /**
