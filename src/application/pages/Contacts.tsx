@@ -15,7 +15,7 @@ export default function Contacts() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
-  const [limit, setLimit] = useState(12);
+  const [limit] = useState(12);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   const { data: contactsData, isLoading, error } = useQuery({
@@ -53,6 +53,7 @@ export default function Contacts() {
   const { data: prospectMessage, isLoading: isGeneratingMessage, error: generatingMessageError } = useQuery({
     queryKey: ['generateMessage', selectedContactId],
     queryFn: () => backendApi.generateMessage(selectedContactId),
+    enabled: !!selectedContactId
   });
 
   /**
