@@ -7,7 +7,7 @@ import { Badge } from '@/application/components/ui/badge';
 import { Button } from '@/application/components/ui/button';
 import { Separator } from '@/application/components/ui/separator';
 import { BackendApiService } from '@/infrastructure/services/backendApiService';
-import { Job } from '@/domain/entities/types';
+import { Job } from '@/domain/entities/job';
 
 export default function Jobs() {
   const backendApi = new BackendApiService();
@@ -20,7 +20,7 @@ export default function Jobs() {
     queryFn: () => backendApi.getLeads('jobs', offset, limit),
   });
 
-  const jobs = (jobsData?.data as Job[]) || [];
+  const jobs = (jobsData as Job[]) || [];
 
   const filteredJobs = jobs.filter((job: Job) =>
     job.job_title?.toLowerCase().includes(search.toLowerCase()) ||

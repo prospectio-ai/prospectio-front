@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/application/components/ui
 import { Badge } from '@/application/components/ui/badge';
 import { useToast } from '@/application/hooks/use-toast';
 import { BackendApiService } from '@/infrastructure/services/backendApiService';
-import { Profile as ProfileType, WorkExperience } from '@/domain/entities/types';
+import { Profile as ProfileType, WorkExperience } from '@/domain/entities/profile';
 
 export default function Profile() {
   const backendApi = new BackendApiService();

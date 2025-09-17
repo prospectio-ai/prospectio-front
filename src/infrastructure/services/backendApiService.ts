@@ -1,4 +1,8 @@
-import { Profile } from '@/domain/entities/types';
+import { Profile } from '@/domain/entities/profile';
+import { ProspectMessage } from '@/domain/entities/prospect_message';
+import { Job } from '@/domain/entities/job';
+import { Company } from '@/domain/entities/company';
+import { Contact } from '@/domain/entities/conatct';
 import { ConfigRepository } from '@/infrastructure/services/configRepository';
 
 /**
@@ -40,20 +44,35 @@ export class BackendApiService {
   /**
    * Get leads from backend by type with pagination
    */
-  async getLeads(type: string, offset: number, limit: number): Promise<{ data: any }> {
+  async getLeads(type: string, offset: number, limit: number): Promise<(Job | Company | Contact)[]> {
     const response = await fetch(`${(await this.config).backendUrl}/prospectio/rest/v1/leads/${type}/${offset}/${limit}`);
-    if (!response.ok) throw new Error('Failed to fetch jobs');
+    if (!response.ok) throw new Error(`Failed to fetch ${type}`);
     const data = await response.json();
     
     switch (type) {
       case 'jobs':
-        return { data: data.jobs };
+        return data.jobs as Job[];
       case 'companies':
-        return { data: data.companies };
+        return data.companies as Company[];
       case 'contacts':
-        return { data: data.contacts };
+        return data.contacts as Contact[];
       default:
         throw new Error('Invalid type');
     }
+  }
+
+  /**
+   * Generate prospect message for a specific ID
+   */
+  async generateMessage(id: string): Promise<ProspectMessage> {
+    const response = await fetch(`${(await this.config).backendUrl}/prospectio/rest/v1/generate/message/${id}?=`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json, text/event-stream',
+      },
+    });
+    if (!response.ok) throw new Error('Failed to generate message');
+    const data = await response.json();
+    return data as ProspectMessage;
   }
 }
