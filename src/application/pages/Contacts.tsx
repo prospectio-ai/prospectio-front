@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, UserCheck, Mail, Phone, ExternalLink, Building2, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/application/components/ui/card';
@@ -6,25 +6,30 @@ import { Input } from '@/application/components/ui/input';
 import { Badge } from '@/application/components/ui/badge';
 import { Button } from '@/application/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/application/components/ui/avatar';
+import { useToast } from '@/application/hooks/use-toast';
 import { BackendApiService } from '@/infrastructure/services/backendApiService';
-import { Contact } from '@/domain/entities/types';
+import { Contact } from '@/domain/entities/contact';
 
 export default function Contacts() {
   const backendApi = new BackendApiService();
+  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
-  const [limit, setLimit] = useState(12);
+  const [limit] = useState(12);
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   const { data: contactsData, isLoading, error } = useQuery({
     queryKey: ['contacts', offset, limit],
     queryFn: () => backendApi.getLeads('contacts', offset, limit),
   });
 
-  const contacts = (contactsData?.data as Contact[]) || [];
+  const contacts = (contactsData as Contact[]) || [];
 
   const filteredContacts = contacts.filter((contact: Contact) =>
     contact.name?.toLowerCase().includes(search.toLowerCase()) ||
-    contact.email?.toLowerCase().includes(search.toLowerCase()) ||
+    contact.email?.some((email: string) =>
+      email.toLowerCase().includes(search.toLowerCase())
+    ) ||
     contact.title?.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -32,6 +37,40 @@ export default function Contacts() {
     if (!name) return 'UN';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
+
+  const handleEmailClick = (contact: Contact) => {
+    if (!contact.id) {
+      toast({
+        title: "Error",
+        description: "Contact ID is missing.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedContactId(contact.id);
+  };
+
+  const { data: prospectMessage, isLoading: isGeneratingMessage, error: generatingMessageError } = useQuery({
+    queryKey: ['generateMessage', selectedContactId],
+    queryFn: () => backendApi.generateMessage(selectedContactId),
+    enabled: !!selectedContactId
+  });
+
+  /**
+   * Handles the effect when prospect message is generated
+   */
+  useEffect(() => {
+    if (prospectMessage && !isGeneratingMessage && selectedContactId) {
+      const contact = contacts.find(c => c.id === selectedContactId);
+      const subject = encodeURIComponent(prospectMessage.subject || '');
+      const body = encodeURIComponent(prospectMessage.message || '');
+      contact.email.forEach(email => {
+        const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
+        window.location.href = mailtoUrl;
+      });
+      setSelectedContactId(null);
+    }
+  }, [prospectMessage, selectedContactId, contacts]);
 
   if (isLoading) {
     return (
@@ -146,11 +185,15 @@ export default function Contacts() {
               {/* Actions */}
               <div className="flex gap-2 pt-2">
                 {contact.email && (
-                  <Button className='bg-gradient-primary text-white flex-1' variant="outline" size="sm" asChild>
-                    <a href={`mailto:${contact.email}`}>
-                      <Mail className="h-4 w-4 mr-1" />
-                      Email
-                    </a>
+                  <Button 
+                    className='bg-gradient-primary text-white flex-1' 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleEmailClick(contact)}
+                    disabled={isGeneratingMessage && selectedContactId === contact.id}
+                  >
+                    <Mail className="h-4 w-4 mr-1" />
+                    {isGeneratingMessage && selectedContactId === contact.id ? 'Generating...' : 'Email'}
                   </Button>
                 )}
                 {contact.profile_url && (

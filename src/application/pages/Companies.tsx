@@ -6,7 +6,7 @@ import { Input } from '@/application/components/ui/input';
 import { Badge } from '@/application/components/ui/badge';
 import { Button } from '@/application/components/ui/button';
 import { BackendApiService } from '@/infrastructure/services/backendApiService';
-import { Company } from '@/domain/entities/types';
+import { Company } from '@/domain/entities/company';
 
 export default function Companies() {
   const backendApi = new BackendApiService();
@@ -20,7 +20,7 @@ export default function Companies() {
     queryFn: () => backendApi.getLeads('companies', offset, limit),
   });
 
-  const companies = (companiesData?.data as Company[]) || [];
+  const companies = (companiesData as Company[]) || [];
 
   const filteredCompanies = companies.filter((company: Company) =>
     company.name?.toLowerCase().includes(search.toLowerCase()) ||
