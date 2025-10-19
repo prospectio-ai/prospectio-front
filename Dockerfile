@@ -6,7 +6,7 @@ FROM oven/bun:1 AS builder
 WORKDIR /app
 
 # Copy package files for dependency caching
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 
 # Install dependencies with bun (faster than npm/yarn)
 RUN bun install --frozen-lockfile

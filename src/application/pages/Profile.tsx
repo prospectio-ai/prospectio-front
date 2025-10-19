@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { Plus, Trash2, User, MapPin, Briefcase, Calendar, Edit3, Save, X, Code2 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { Badge } from '@/application/components/ui/badge';
 import { useToast } from '@/application/hooks/use-toast';
 import { BackendApiService } from '@/infrastructure/services/backendApiService';
 import { Profile as ProfileType, WorkExperience } from '@/domain/entities/profile';
+import { useLogto, type IdTokenClaims } from '@logto/react';
 
 export default function Profile() {
   const backendApi = new BackendApiService();

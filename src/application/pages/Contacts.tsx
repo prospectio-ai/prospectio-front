@@ -50,17 +50,10 @@ export default function Contacts() {
     setSelectedContactId(contact.id);
   };
 
-  const { data: prospectMessage, isLoading: isGeneratingMessage, error: generatingMessageError } = useQuery({
+  const { isLoading: isGeneratingMessage } = useQuery({
     queryKey: ['generateMessage', selectedContactId],
-    queryFn: () => backendApi.generateMessage(selectedContactId),
-    enabled: !!selectedContactId
-  });
-
-  /**
-   * Handles the effect when prospect message is generated
-   */
-  useEffect(() => {
-    if (prospectMessage && !isGeneratingMessage && selectedContactId) {
+    queryFn: async () => {
+      const prospectMessage = await backendApi.generateMessage(selectedContactId);
       const contact = contacts.find(c => c.id === selectedContactId);
       const subject = encodeURIComponent(prospectMessage.subject || '');
       const body = encodeURIComponent(prospectMessage.message || '');
@@ -69,8 +62,11 @@ export default function Contacts() {
         window.location.href = mailtoUrl;
       });
       setSelectedContactId(null);
-    }
-  }, [prospectMessage, selectedContactId, contacts]);
+
+      return prospectMessage;
+    },
+    enabled: !!selectedContactId
+  });
 
   if (isLoading) {
     return (
