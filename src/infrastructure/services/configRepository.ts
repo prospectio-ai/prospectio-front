@@ -38,6 +38,10 @@ export class ConfigRepository {
       this.config = {
         chatbotUrl: "http://localhost:3000",
         backendUrl: "http://localhost:8000",
+        logtoUrl: "http://localhost:3002",
+        logtoAppId: "fallback",
+        redirectUrl: "http://localhost:5173/callback",
+        signOutUrl: "http://localhost:5173",
       };
       return this.config;
     } finally {

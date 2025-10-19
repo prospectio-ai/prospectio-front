@@ -10,6 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/application/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/application/components/ui/avatar";
+import { IdTokenClaims, useLogto } from '@logto/react';
+import { useEffect, useState } from "react";
+import { CallbackConfig } from "@/domain/entities/callbackConfig";
+import { ConfigRepository } from "@/infrastructure/services/configRepository";
 
 interface HeaderProps {
   title: string;
@@ -17,8 +21,39 @@ interface HeaderProps {
   children?: React.ReactNode;
 }
 
+const configRepository = new ConfigRepository();
+
+
 export function Header({ title, description, children }: HeaderProps) {
-  return (
+  const { isAuthenticated, signIn, signOut, getIdTokenClaims, isLoading } = useLogto();
+  const [user, setUser] = useState<IdTokenClaims>();
+  const [config, setConfig] = useState<CallbackConfig | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const appConfig = await configRepository.getConfig();
+      setConfig({
+        redirectUrl: appConfig.redirectUrl,
+        signOutUrl: appConfig.signOutUrl,
+      });
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (isAuthenticated) {
+        const claims = await getIdTokenClaims();
+        console.log('User claims:', claims);
+        setUser(claims);
+      }
+
+      if (!isAuthenticated && !isLoading && config) {
+        await signIn(config?.redirectUrl);
+      }
+    })();
+  }, [getIdTokenClaims, isAuthenticated, isLoading, config]);
+
+  return config === null ? null : (
     <header className="bg-card border-b border-border card-shadow">
       <div className="px-6 py-2">
         <div className="flex items-center justify-between">
@@ -65,20 +100,18 @@ export function Header({ title, description, children }: HeaderProps) {
                 <Button variant="ghost" className="h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                      JD
+                      {user?.username ? user.username.substring(0, 2).toUpperCase() : <User className="h-4 w-4" />}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  Log out
-                </DropdownMenuItem>
+                {isAuthenticated && (
+                  <DropdownMenuItem onClick={() => signOut(config?.signOutUrl)}>
+                    Log out
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
