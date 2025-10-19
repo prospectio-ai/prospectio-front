@@ -43,12 +43,11 @@ export function Header({ title, description, children }: HeaderProps) {
     (async () => {
       if (isAuthenticated) {
         const claims = await getIdTokenClaims();
-        console.log('User claims:', claims);
         setUser(claims);
       }
 
       if (!isAuthenticated && !isLoading && config) {
-        await signIn(config?.redirectUrl);
+        await signIn(config.redirectUrl);
       }
     })();
   }, [getIdTokenClaims, isAuthenticated, isLoading, config]);
@@ -108,7 +107,7 @@ export function Header({ title, description, children }: HeaderProps) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuSeparator />
                 {isAuthenticated && (
-                  <DropdownMenuItem onClick={() => signOut(config?.signOutUrl)}>
+                  <DropdownMenuItem onClick={() => signOut(config.signOutUrl)}>
                     Log out
                   </DropdownMenuItem>
                 )}

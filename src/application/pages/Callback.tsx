@@ -1,7 +1,7 @@
 import { useHandleSignInCallback } from '@logto/react';
 
 const Callback = () => {
-  const { isLoading } = useHandleSignInCallback(() => {
+  useHandleSignInCallback(() => {
     // Navigate to root path when finished
     window.location.href = '/';
   });
