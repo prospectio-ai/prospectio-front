@@ -68,9 +68,9 @@ export default function Jobs() {
     <div className="space-y-6">
       <ShimmerSkeleton className="h-10 w-full" rounded="md" />
       <div className="space-y-6">
-        {[...Array(3)].map((_, i) => (
-          <SkeletonCard key={i} lines={4} />
-        ))}
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
       </div>
     </div>
   );
@@ -139,7 +139,7 @@ export default function Jobs() {
                           </AnimatedCardDescription>
                         </div>
                       </div>
-                      {job.compatibility_score && (
+                      {!!job.compatibility_score && (
                         <Badge className="bg-gradient-primary text-white">
                           <Star className="h-3 w-3 mr-1" />
                           {job.compatibility_score}% match
@@ -184,8 +184,8 @@ export default function Jobs() {
                       <div>
                         <h4 className="font-medium mb-2">Sectors</h4>
                         <div className="flex flex-wrap gap-1">
-                          {job.sectors.split(',').map((sector, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
+                          {job.sectors.split(',').map((sector) => (
+                            <Badge key={sector.trim()} variant="secondary" className="text-xs">
                               {sector.trim()}
                             </Badge>
                           ))}

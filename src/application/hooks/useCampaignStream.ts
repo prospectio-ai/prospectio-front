@@ -56,6 +56,66 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+interface ParsedSSEEvent {
+  eventType: string;
+  eventData: string;
+}
+
+function parseSSEEvents(rawBuffer: string): { events: ParsedSSEEvent[]; remaining: string } {
+  const chunks = rawBuffer.split('\n\n');
+  const remaining = chunks.pop() || '';
+  const events: ParsedSSEEvent[] = [];
+
+  for (const eventStr of chunks) {
+    if (!eventStr.trim()) continue;
+
+    const lines = eventStr.split('\n');
+    let eventType = '';
+    let eventData = '';
+
+    for (const line of lines) {
+      if (line.startsWith('event: ')) {
+        eventType = line.slice(7);
+      } else if (line.startsWith('data: ')) {
+        eventData = line.slice(6);
+      }
+    }
+
+    if (eventType && eventData) {
+      events.push({ eventType, eventData });
+    }
+  }
+
+  return { events, remaining };
+}
+
+async function readSSEStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onEvent: (eventType: SSEEventType, data: unknown) => void,
+): Promise<void> {
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const { events, remaining } = parseSSEEvents(buffer);
+    buffer = remaining;
+
+    for (const { eventType, eventData } of events) {
+      try {
+        const parsed = JSON.parse(eventData);
+        console.log('[SSE] Received event:', eventType, parsed);
+        onEvent(eventType as SSEEventType, parsed.data || parsed);
+      } catch (parseError) {
+        console.error('Failed to parse SSE event:', parseError, 'Raw data:', eventData);
+      }
+    }
+  }
+}
+
 export function useCampaignStream(options: UseCampaignStreamOptions = {}) {
   const [state, setState] = useState<CampaignStreamState>(INITIAL_STATE);
 
@@ -219,47 +279,9 @@ export function useCampaignStream(options: UseCampaignStreamOptions = {}) {
       // Store reader reference for cleanup
       readerRef.current = reader;
 
-      const decoder = new TextDecoder();
-      let buffer = '';
-
       const processStream = async () => {
         try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-
-            // Parse SSE events from buffer
-            const events = buffer.split('\n\n');
-            buffer = events.pop() || ''; // Keep incomplete event in buffer
-
-            for (const eventStr of events) {
-              if (!eventStr.trim()) continue;
-
-              const lines = eventStr.split('\n');
-              let eventType = '';
-              let eventData = '';
-
-              for (const line of lines) {
-                if (line.startsWith('event: ')) {
-                  eventType = line.slice(7);
-                } else if (line.startsWith('data: ')) {
-                  eventData = line.slice(6);
-                }
-              }
-
-              if (eventType && eventData) {
-                try {
-                  const parsed = JSON.parse(eventData);
-                  console.log('[SSE] Received event:', eventType, parsed);
-                  handleEvent(eventType as SSEEventType, parsed.data || parsed);
-                } catch (parseError) {
-                  console.error('Failed to parse SSE event:', parseError, 'Raw data:', eventData);
-                }
-              }
-            }
-          }
+          await readSSEStream(reader, handleEvent);
         } catch (streamError) {
           if (streamError instanceof Error && streamError.name === 'AbortError') {
             return;

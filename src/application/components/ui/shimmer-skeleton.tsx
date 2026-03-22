@@ -37,7 +37,7 @@ function ShimmerSkeleton({
   variant = "shimmer",
   rounded = "md",
   ...props
-}: ShimmerSkeletonProps) {
+}: Readonly<ShimmerSkeletonProps>) {
   const prefersReducedMotion = useReducedMotion();
 
   // Base styles
@@ -108,7 +108,7 @@ interface SkeletonCardProps {
   lines?: number;
 }
 
-function SkeletonCard({ className, showImage = false, lines = 3 }: SkeletonCardProps) {
+function SkeletonCard({ className, showImage = false, lines = 3 }: Readonly<SkeletonCardProps>) {
   return (
     <div className={cn("rounded-lg border bg-card p-6 space-y-4", className)}>
       {showImage && (
@@ -122,13 +122,16 @@ function SkeletonCard({ className, showImage = false, lines = 3 }: SkeletonCardP
         </div>
       </div>
       <div className="space-y-2">
-        {Array.from({ length: lines }).map((_, i) => (
-          <ShimmerSkeleton
-            key={i}
-            className="h-3"
-            style={{ width: `${100 - i * 15}%` }}
-          />
-        ))}
+        {Array.from({ length: lines }).map((_, i) => {
+          const width = `${100 - i * 15}%`;
+          return (
+            <ShimmerSkeleton
+              key={`line-w${width}`}
+              className="h-3"
+              style={{ width }}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -139,7 +142,7 @@ interface SkeletonListItemProps {
   showAvatar?: boolean;
 }
 
-function SkeletonListItem({ className, showAvatar = true }: SkeletonListItemProps) {
+function SkeletonListItem({ className, showAvatar = true }: Readonly<SkeletonListItemProps>) {
   return (
     <div className={cn("flex items-center space-x-4 p-4", className)}>
       {showAvatar && (
@@ -160,7 +163,7 @@ interface SkeletonGridProps {
   columns?: 1 | 2 | 3 | 4;
 }
 
-function SkeletonGrid({ className, count = 6, columns = 3 }: SkeletonGridProps) {
+function SkeletonGrid({ className, count = 6, columns = 3 }: Readonly<SkeletonGridProps>) {
   const gridCols = {
     1: "grid-cols-1",
     2: "grid-cols-1 md:grid-cols-2",
@@ -170,8 +173,8 @@ function SkeletonGrid({ className, count = 6, columns = 3 }: SkeletonGridProps) 
 
   return (
     <div className={cn("grid gap-6", gridCols[columns], className)}>
-      {Array.from({ length: count }).map((_, i) => (
-        <SkeletonCard key={i} />
+      {Array.from({ length: count }, (_, i) => `grid-item-${i}`).map((id) => (
+        <SkeletonCard key={id} />
       ))}
     </div>
   );

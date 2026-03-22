@@ -14,7 +14,7 @@ export interface Task {
   task_id: string;
   message: string;
   status: 'pending' | 'processing' | 'in_progress' | 'completed' | 'failed' | 'unknown';
-  task_type?: 'insert_leads' | 'generate_campaign' | string;
+  task_type?: 'insert_leads' | 'generate_campaign' | (string & Record<never, never>);
   progress?: TaskProgress;
   error_details?: string;
   result?: unknown;

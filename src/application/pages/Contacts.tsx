@@ -82,7 +82,7 @@ export default function Contacts() {
       const body = encodeURIComponent(prospectMessage.message || '');
       contact?.email?.forEach(email => {
         const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
-        window.location.href = mailtoUrl;
+        globalThis.location.href = mailtoUrl;
       });
       setSelectedContactId(null);
 
@@ -179,8 +179,8 @@ export default function Contacts() {
                     <div className="space-y-2">
                       {contact.email && contact.email.length > 0 && (
                         <div className="space-y-1">
-                          {contact.email.slice(0, 1).map((email: string, emailIndex: number) => (
-                            <div key={emailIndex} className="flex items-center text-sm">
+                          {contact.email.slice(0, 1).map((email: string) => (
+                            <div key={email} className="flex items-center text-sm">
                               <Mail className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
                               <span className="text-foreground truncate">{email}</span>
                             </div>

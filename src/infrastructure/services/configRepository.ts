@@ -15,7 +15,8 @@ export class ConfigRepository {
       while (this.loading) {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
-      return this.config!;
+      if (this.config) return this.config;
+      throw new Error('Config failed to load');
     }
 
     this.loading = true;

@@ -46,7 +46,7 @@ export function ContentFade({
   variant = "fade",
   className,
   contentKey = "content",
-}: ContentFadeProps) {
+}: Readonly<ContentFadeProps>) {
   const prefersReducedMotion = useReducedMotion();
 
   const variants = variant === "scale" ? scaleFadeVariants : contentFadeVariants;
@@ -106,7 +106,7 @@ interface FadeInProps {
  * </FadeIn>
  * ```
  */
-export function FadeIn({ children, className, delay = 0, duration = 0.3 }: FadeInProps) {
+export function FadeIn({ children, className, delay = 0, duration = 0.3 }: Readonly<FadeInProps>) {
   const prefersReducedMotion = useReducedMotion();
 
   if (prefersReducedMotion) {
@@ -153,7 +153,7 @@ export function FadeInWhenVisible({
   className,
   threshold = 0.1,
   triggerOnce = true,
-}: FadeInWhenVisibleProps) {
+}: Readonly<FadeInWhenVisibleProps>) {
   const prefersReducedMotion = useReducedMotion();
   const [isVisible, setIsVisible] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);

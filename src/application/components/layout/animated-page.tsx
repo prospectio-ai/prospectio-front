@@ -21,7 +21,7 @@ interface AnimatedPageProps {
  * </AnimatedPage>
  * ```
  */
-export function AnimatedPage({ children, className }: AnimatedPageProps) {
+export function AnimatedPage({ children, className }: Readonly<AnimatedPageProps>) {
   const prefersReducedMotion = useReducedMotion();
   const variants = getVariants(
     prefersReducedMotion ?? false,

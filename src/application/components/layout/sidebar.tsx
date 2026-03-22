@@ -30,13 +30,10 @@ interface SidebarProps {
   className?: string;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className }: Readonly<SidebarProps>) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
   const prefersReducedMotion = useReducedMotion();
-
-  // Get currently active nav item for layoutId
-  const activeItem = navigation.find(item => location.pathname === item.href);
 
   return (
     <motion.div

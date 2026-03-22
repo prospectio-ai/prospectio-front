@@ -12,7 +12,7 @@ import Jobs from "./application/pages/Jobs";
 import Profile from "./application/pages/Profile";
 import ProspectCampaign from "./application/pages/ProspectCampaign";
 import NotFound from "./application/pages/NotFound";
-import { LogtoProvider, LogtoConfig, useLogto } from '@logto/react';
+import { LogtoProvider, LogtoConfig } from '@logto/react';
 import Callback from "./application/pages/Callback";
 import { useEffect, useState } from "react";
 import { ConfigRepository } from "./infrastructure/services/configRepository";

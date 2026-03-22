@@ -39,7 +39,7 @@ export function ContactDetailSheet({
   onOpenChange,
   onEmailClick,
   isGeneratingMessage,
-}: ContactDetailSheetProps) {
+}: Readonly<ContactDetailSheetProps>) {
   if (!contact) return null;
 
   const getInitials = (name?: string) => {
@@ -71,8 +71,8 @@ export function ContactDetailSheet({
    */
   const renderBio = (bio: string) => {
     const paragraphs = bio.split(/\n\n|\n/).filter((p) => p.trim());
-    return paragraphs.map((paragraph, index) => (
-      <p key={index} className="text-sm text-foreground/90 leading-relaxed">
+    return paragraphs.map((paragraph) => (
+      <p key={paragraph.trim().slice(0, 50)} className="text-sm text-foreground/90 leading-relaxed">
         {paragraph.trim()}
       </p>
     ));
@@ -118,9 +118,9 @@ export function ContactDetailSheet({
               <div className="space-y-2.5 pl-1">
                 {contact.email && contact.email.length > 0 && (
                   <div className="space-y-1.5">
-                    {contact.email.map((email: string, emailIndex: number) => (
+                    {contact.email.map((email: string) => (
                       <div
-                        key={emailIndex}
+                        key={email}
                         className="flex items-center text-sm group"
                       >
                         <Mail className="h-4 w-4 mr-2.5 text-primary/70" />
@@ -153,16 +153,18 @@ export function ContactDetailSheet({
                     <div className="flex items-start text-sm">
                       <ExternalLink className="h-4 w-4 mr-2.5 mt-0.5 text-primary/70 flex-shrink-0" />
                       <div className="flex flex-col gap-1">
-                        {profileUrls.map((url, index) => (
+                        {profileUrls.map((url, urlIdx) => (
                           <a
-                            key={index}
+                            key={url}
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-foreground hover:text-primary transition-colors underline-offset-2 hover:underline truncate max-w-[250px]"
                             title={url}
                           >
-                            {url.includes('linkedin.com') ? 'LinkedIn Profile' : `Profile ${profileUrls.length > 1 ? index + 1 : ''}`}
+                            {url.includes('linkedin.com') && 'LinkedIn Profile'}
+                            {!url.includes('linkedin.com') && profileUrls.length > 1 && `Profile ${urlIdx + 1}`}
+                            {!url.includes('linkedin.com') && profileUrls.length <= 1 && 'Profile'}
                           </a>
                         ))}
                       </div>
