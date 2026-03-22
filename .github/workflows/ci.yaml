@@ -26,7 +26,7 @@ jobs:
         run: bun run build
 
       - name: Run tests with coverage
-        run: bun run test --coverage --passWithNoTests
+        run: bun run test --coverage
 
       - name: Trivy FS Scan (report)
         uses: aquasecurity/trivy-action@master
