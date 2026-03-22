@@ -3,8 +3,11 @@
 ## 🚀 Features
 
 - **Job Opportunities**: Track and manage job postings with compatibility scoring
-- **Company Profiles**: Detailed company information and relationship management  
+- **Company Profiles**: Detailed company information and relationship management
 - **Contact Management**: Centralized contact database with relationship mapping
+  - **Contact Bio Display**: Enriched contact profiles with biographical information
+    - `short_description`: Displayed in the contacts list for quick overview
+    - `full_bio`: Displayed in the contact detail sheet for comprehensive information
 - **Dark/Light Theme**: Seamless theme switching with system preference detection
 
 

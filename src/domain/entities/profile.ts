@@ -13,3 +13,8 @@ export interface WorkExperience {
   end_date?: string;
   description?: string;
 }
+
+export interface ResumeExtractionResponse {
+  extracted_profile: Profile;
+  raw_text: string;
+}

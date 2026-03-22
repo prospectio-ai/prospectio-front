@@ -10,6 +10,7 @@ import Companies from "./application/pages/Companies";
 import Contacts from "./application/pages/Contacts";
 import Jobs from "./application/pages/Jobs";
 import Profile from "./application/pages/Profile";
+import ProspectCampaign from "./application/pages/ProspectCampaign";
 import NotFound from "./application/pages/NotFound";
 import { LogtoProvider, LogtoConfig, useLogto } from '@logto/react';
 import Callback from "./application/pages/Callback";
@@ -48,6 +49,7 @@ const App = () => {
                 <Route path="jobs" element={<Jobs />} />
                 <Route path="companies" element={<Companies />} />
                 <Route path="contacts" element={<Contacts />} />
+                <Route path="campaign" element={<ProspectCampaign />} />
                 <Route path="callback" element={<Callback />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
