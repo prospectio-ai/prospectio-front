@@ -3,3 +3,7 @@ node_modules
 .env.docker
 .vscode
 config.json
+dist
+coverage
+.scannerwork
+.DS_Store
