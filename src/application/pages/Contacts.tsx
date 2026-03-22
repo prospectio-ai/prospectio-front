@@ -1,14 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, UserCheck, Mail, Phone, ExternalLink, Building2, Briefcase } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/application/components/ui/card';
-import { Input } from '@/application/components/ui/input';
+import { Search, UserCheck, Mail, Phone, ExternalLink, Building2, Briefcase, ChevronRight } from 'lucide-react';
+import { AnimatedPage } from '@/application/components/layout/animated-page';
+import { AnimatedGrid, AnimatedGridItem } from '@/application/components/animated/animated-grid';
+import { ContentFade, FadeIn } from '@/application/components/animated/content-fade';
+import {
+  AnimatedCard,
+  AnimatedCardContent,
+  AnimatedCardDescription,
+  AnimatedCardHeader,
+  AnimatedCardTitle,
+} from '@/application/components/ui/animated-card';
+import { AnimatedInput } from '@/application/components/ui/animated-input';
+import { AnimatedButton } from '@/application/components/ui/animated-button';
 import { Badge } from '@/application/components/ui/badge';
-import { Button } from '@/application/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/application/components/ui/avatar';
+import { ShimmerSkeleton, SkeletonGrid } from '@/application/components/ui/shimmer-skeleton';
 import { useToast } from '@/application/hooks/use-toast';
 import { BackendApiService } from '@/infrastructure/services/backendApiService';
 import { Contact } from '@/domain/entities/contact';
+import { ContactDetailSheet } from '@/application/components/contacts/ContactDetailSheet';
 
 export default function Contacts() {
   const backendApi = new BackendApiService();
@@ -17,6 +28,8 @@ export default function Contacts() {
   const [offset, setOffset] = useState(0);
   const [limit] = useState(12);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+  const [detailContact, setDetailContact] = useState<Contact | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const { data: contactsData, isLoading, error } = useQuery({
     queryKey: ['contacts', offset, limit],
@@ -50,6 +63,16 @@ export default function Contacts() {
     setSelectedContactId(contact.id);
   };
 
+  const handleContactClick = (contact: Contact) => {
+    setDetailContact(contact);
+    setIsDetailOpen(true);
+  };
+
+  const handleDetailEmailClick = (contact: Contact) => {
+    setIsDetailOpen(false);
+    handleEmailClick(contact);
+  };
+
   const { isLoading: isGeneratingMessage } = useQuery({
     queryKey: ['generateMessage', selectedContactId],
     queryFn: async () => {
@@ -57,7 +80,7 @@ export default function Contacts() {
       const contact = contacts.find(c => c.id === selectedContactId);
       const subject = encodeURIComponent(prospectMessage.subject || '');
       const body = encodeURIComponent(prospectMessage.message || '');
-      contact.email.forEach(email => {
+      contact?.email?.forEach(email => {
         const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
         window.location.href = mailtoUrl;
       });
@@ -68,173 +91,219 @@ export default function Contacts() {
     enabled: !!selectedContactId
   });
 
-  if (isLoading) {
-    return (
-      <div className="p-6">
-        <div className="space-y-6">
-          <div className="h-8 bg-muted rounded animate-pulse" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(9)].map((_, i) => (
-              <div key={i} className="h-48 bg-muted rounded-lg animate-pulse" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
-      <div className="p-6">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Error loading contacts</p>
+      <AnimatedPage>
+        <div className="p-6">
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Error loading contacts</p>
+          </div>
         </div>
-      </div>
+      </AnimatedPage>
     );
   }
 
-  return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Contacts</h1>
-        <p className="text-muted-foreground">
-          Connect with key decision makers and industry professionals
-        </p>
-      </div>
+  const loadingSkeleton = (
+    <div className="space-y-6">
+      <ShimmerSkeleton className="h-10 w-full" rounded="md" />
+      <SkeletonGrid count={9} columns={3} />
+    </div>
+  );
 
-      {/* Search */}
-      <div className="mb-6 relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input
-          placeholder="Search contacts by name, email, or title..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
+  return (
+    <AnimatedPage>
+      <div className="p-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <FadeIn className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Contacts</h1>
+          <p className="text-muted-foreground">
+            Connect with key decision makers and industry professionals
+          </p>
+        </FadeIn>
+
+        <ContentFade
+          isLoading={isLoading}
+          skeleton={loadingSkeleton}
+          contentKey={`contacts-${offset}`}
+        >
+          {/* Search */}
+          <FadeIn delay={0.1} className="mb-6 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
+            <AnimatedInput
+              placeholder="Search contacts by name, email, or title..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
+          </FadeIn>
+
+          {/* Contacts Grid */}
+          <AnimatedGrid columns={3} gap="md">
+            {filteredContacts.map((contact: Contact, index: number) => (
+              <AnimatedGridItem key={contact.id || index}>
+                <AnimatedCard
+                  onClick={() => handleContactClick(contact)}
+                  className="group"
+                >
+                  <AnimatedCardHeader className="pb-3">
+                    <div className="flex items-start space-x-4">
+                      <Avatar className="h-12 w-12 flex-shrink-0">
+                        <AvatarImage src="" alt={contact.name} />
+                        <AvatarFallback className="bg-gradient-primary text-white">
+                          {getInitials(contact.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <AnimatedCardTitle className="text-lg truncate">
+                            {contact.name ? contact.name[0].toUpperCase() + contact.name.slice(1) : 'Unknown Name'}
+                          </AnimatedCardTitle>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2" />
+                        </div>
+                        <AnimatedCardDescription className="truncate">
+                          {contact.title ? contact.title[0].toUpperCase() + contact.title.slice(1) : 'No title'}
+                        </AnimatedCardDescription>
+                      </div>
+                    </div>
+                  </AnimatedCardHeader>
+
+                  <AnimatedCardContent className="space-y-4">
+                    {/* Short Description - AI-generated summary */}
+                    {contact.short_description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                        {contact.short_description}
+                      </p>
+                    )}
+
+                    {/* Contact Info */}
+                    <div className="space-y-2">
+                      {contact.email && contact.email.length > 0 && (
+                        <div className="space-y-1">
+                          {contact.email.slice(0, 1).map((email: string, emailIndex: number) => (
+                            <div key={emailIndex} className="flex items-center text-sm">
+                              <Mail className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+                              <span className="text-foreground truncate">{email}</span>
+                            </div>
+                          ))}
+                          {contact.email.length > 1 && (
+                            <span className="text-xs text-muted-foreground ml-6">
+                              +{contact.email.length - 1} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {contact.phone && (
+                        <div className="flex items-center text-sm">
+                          <Phone className="h-4 w-4 mr-2 text-muted-foreground flex-shrink-0" />
+                          <span className="text-foreground">{contact.phone}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Company & Job References */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {contact.company_name && (
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          <Building2 className="h-3 w-3 mr-1" />
+                          {contact.company_name.length > 20
+                            ? contact.company_name.slice(0, 20) + '...'
+                            : contact.company_name.charAt(0).toUpperCase() + contact.company_name.slice(1)}
+                        </Badge>
+                      )}
+                      {contact.job_title && (
+                        <Badge variant="outline" className="text-xs font-normal">
+                          <Briefcase className="h-3 w-3 mr-1" />
+                          {contact.job_title.length > 20
+                            ? contact.job_title.slice(0, 20) + '...'
+                            : contact.job_title.charAt(0).toUpperCase() + contact.job_title.slice(1)}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2">
+                      {contact.email && (
+                        <AnimatedButton
+                          className='bg-gradient-primary text-white flex-1'
+                          variant="outline"
+                          size="sm"
+                          animationStyle="glow"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEmailClick(contact);
+                          }}
+                          disabled={isGeneratingMessage && selectedContactId === contact.id}
+                        >
+                          <Mail className="h-4 w-4 mr-1" />
+                          {isGeneratingMessage && selectedContactId === contact.id ? 'Generating...' : 'Email'}
+                        </AnimatedButton>
+                      )}
+                      {contact.profile_url && (() => {
+                        const profileUrls = contact.profile_url.split(',').map(url => url.trim()).filter(Boolean);
+                        const firstUrl = profileUrls[0];
+                        return (
+                          <AnimatedButton
+                            className='flex-1'
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => e.stopPropagation()}
+                            asChild
+                          >
+                            <a href={firstUrl} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4 mr-1" />
+                              Profile{profileUrls.length > 1 ? ` (+${profileUrls.length - 1})` : ''}
+                            </a>
+                          </AnimatedButton>
+                        );
+                      })()}
+                    </div>
+                  </AnimatedCardContent>
+                </AnimatedCard>
+              </AnimatedGridItem>
+            ))}
+          </AnimatedGrid>
+
+          {/* Pagination */}
+          {(contacts.length >= limit || offset > 0) && (
+            <FadeIn delay={0.3} className="flex justify-center mt-8 gap-2">
+              <AnimatedButton
+                variant="outline"
+                disabled={offset === 0}
+                onClick={() => setOffset(Math.max(0, offset - limit))}
+              >
+                Previous
+              </AnimatedButton>
+              <AnimatedButton
+                variant="outline"
+                disabled={contacts.length < limit}
+                onClick={() => setOffset(offset + limit)}
+              >
+                Next
+              </AnimatedButton>
+            </FadeIn>
+          )}
+
+          {/* Empty State */}
+          {filteredContacts.length === 0 && !isLoading && (
+            <FadeIn className="text-center py-12">
+              <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No contacts found</h3>
+              <p className="text-muted-foreground">
+                {search ? "Try adjusting your search terms" : "No contacts available"}
+              </p>
+            </FadeIn>
+          )}
+        </ContentFade>
+
+        {/* Contact Detail Sheet */}
+        <ContactDetailSheet
+          contact={detailContact}
+          open={isDetailOpen}
+          onOpenChange={setIsDetailOpen}
+          onEmailClick={handleDetailEmailClick}
+          isGeneratingMessage={isGeneratingMessage && selectedContactId === detailContact?.id}
         />
       </div>
-
-      {/* Contacts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredContacts.map((contact: Contact, index: number) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-4">
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src="" alt={contact.name} />
-                  <AvatarFallback className="bg-gradient-primary text-white">
-                    {getInitials(contact.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-lg truncate">
-                    {contact.name ? contact.name[0].toUpperCase() + contact.name.slice(1) : 'Unknown Name'}
-                  </CardTitle>
-                  <CardDescription className="truncate">
-                    {contact.title ? contact.title[0].toUpperCase() + contact.title.slice(1) : 'No title'}
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="space-y-4">
-              {/* Contact Info */}
-              <div className="space-y-2">
-                {contact.email && contact.email.length > 0 && (
-                  <div className="space-y-1">
-                    {contact.email.map((email: string, emailIndex: number) => (
-                      <div key={emailIndex} className="flex items-center text-sm">
-                        <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span className="text-foreground">{email}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {contact.phone && (
-                  <div className="flex items-center text-sm">
-                    <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <span className="text-foreground">{contact.phone}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Company & Job References */}
-              <div className="space-y-2">
-                {contact.company_name && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Building2 className="h-4 w-4 mr-2" />
-                    <Badge variant="outline" className="text-xs">
-                      Company: {contact.company_name ? contact.company_name[0].toUpperCase() + contact.company_name.slice(1) : ''}
-                    </Badge>
-                  </div>
-                )}
-                {contact.job_title && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Briefcase className="h-4 w-4 mr-2" />
-                    <Badge variant="outline" className="text-xs">
-                      Job Title: {contact.job_title ? contact.job_title[0].toUpperCase() + contact.job_title.slice(1) : ''}
-                    </Badge>
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-2">
-                {contact.email && (
-                  <Button 
-                    className='bg-gradient-primary text-white flex-1' 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleEmailClick(contact)}
-                    disabled={isGeneratingMessage && selectedContactId === contact.id}
-                  >
-                    <Mail className="h-4 w-4 mr-1" />
-                    {isGeneratingMessage && selectedContactId === contact.id ? 'Generating...' : 'Email'}
-                  </Button>
-                )}
-                {contact.profile_url && (
-                  <Button className='bg-gradient-primary text-white flex-1' variant="outline" size="sm" asChild>
-                    <a href={contact.profile_url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Profile
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Pagination */}
-      {contacts.length >= 10 && (
-        <div className="flex justify-center mt-8 gap-2">
-          <Button
-            variant="outline"
-            disabled={offset === 0}
-            onClick={() => setOffset(Math.max(0, offset - 10))}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setOffset(offset + 10)}
-          >
-            Next
-          </Button>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {filteredContacts.length === 0 && !isLoading && (
-        <div className="text-center py-12">
-          <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground mb-2">No contacts found</h3>
-          <p className="text-muted-foreground">
-            {search ? "Try adjusting your search terms" : "No contacts available"}
-          </p>
-        </div>
-      )}
-    </div>
+    </AnimatedPage>
   );
 }
