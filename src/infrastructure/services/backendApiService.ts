@@ -22,8 +22,6 @@ export class BackendApiService {
 
   private readonly config = new ConfigRepository().getConfig();
 
-  constructor() {}
-
   /**
    * Get user profile from backend
    */

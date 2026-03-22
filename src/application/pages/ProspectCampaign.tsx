@@ -98,7 +98,6 @@ export default function ProspectCampaign() {
     isCompleted: streamCompleted,
     result: streamResult,
     startStream,
-    reset: resetStream,
   } = useCampaignStream({
     onComplete: (result) => {
       toast({
@@ -184,11 +183,17 @@ export default function ProspectCampaign() {
   }, [paginationHandleLoadMore]);
 
   // Build current task object from stream state for TaskProgress component
+  const getStreamStatus = (): Task['status'] => {
+    if (streamCompleted) return 'completed';
+    if (streamError) return 'failed';
+    return 'in_progress';
+  };
+
   const currentTask: Task | null = (isStreaming || streamCompleted || streamError)
     ? {
         task_id: streamingCampaignId || '',
         message: getTaskMessage(streamProgress, streamCompleted, streamResult, streamError),
-        status: streamCompleted ? 'completed' : streamError ? 'failed' : 'in_progress',
+        status: getStreamStatus(),
         task_type: 'generate_campaign',
         progress: streamProgress
           ? {
@@ -252,7 +257,7 @@ export default function ProspectCampaign() {
     const subject = encodeURIComponent(message.subject);
     const body = encodeURIComponent(message.message);
     const mailtoUrl = `mailto:${message.contact_email[0]}?subject=${subject}&body=${body}`;
-    window.location.href = mailtoUrl;
+    globalThis.location.href = mailtoUrl;
   };
 
   const toggleMessageExpansion = (contactId: string) => {
@@ -311,9 +316,9 @@ export default function ProspectCampaign() {
     <div className="space-y-6">
       <ShimmerSkeleton className="h-32 w-full" rounded="lg" />
       <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <SkeletonCard key={i} lines={3} />
-        ))}
+        <SkeletonCard lines={3} />
+        <SkeletonCard lines={3} />
+        <SkeletonCard lines={3} />
       </div>
     </div>
   );
@@ -784,12 +789,9 @@ export default function ProspectCampaign() {
                 Ready to Launch Your Campaign
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                {campaigns.length > 0
-                  ? "Select an existing campaign above to view its messages, or create a new one."
-                  : totalNewContacts > 0
-                    ? `You have ${totalNewContacts} new contacts ready. Enter a campaign name above and click "Generate Campaign" to create personalized outreach messages.`
-                    : "Add some contacts first to start generating personalized campaign messages."
-                }
+                {campaigns.length > 0 && "Select an existing campaign above to view its messages, or create a new one."}
+                {campaigns.length === 0 && totalNewContacts > 0 && `You have ${totalNewContacts} new contacts ready. Enter a campaign name above and click "Generate Campaign" to create personalized outreach messages.`}
+                {campaigns.length === 0 && totalNewContacts === 0 && "Add some contacts first to start generating personalized campaign messages."}
               </p>
             </FadeIn>
           )}
@@ -798,9 +800,9 @@ export default function ProspectCampaign() {
           {selectedCampaignId && isLoadingMessages && (
             <FadeIn delay={0.2}>
               <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <SkeletonCard key={i} lines={3} />
-                ))}
+                <SkeletonCard lines={3} />
+                <SkeletonCard lines={3} />
+                <SkeletonCard lines={3} />
               </div>
             </FadeIn>
           )}

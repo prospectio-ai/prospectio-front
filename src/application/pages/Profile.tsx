@@ -41,6 +41,72 @@ import { staggerItemVariants, transitions } from '@/lib/animations';
 // Create singleton instance outside component to prevent recreation on each render
 const backendApi = new BackendApiService();
 
+function buildJobParams(profile: ProfileType): string[] {
+  const params: string[] = [];
+  if (profile.technos && profile.technos.length > 0) {
+    params.push(...profile.technos);
+  }
+  if (profile.job_title) {
+    params.push(profile.job_title);
+  }
+  return params;
+}
+
+function hasValidSearchCriteria(profile: ProfileType): boolean {
+  return (!!profile.technos && profile.technos.length > 0) || !!profile.job_title;
+}
+
+interface PollCallbacks {
+  onStatusUpdate: (taskStatus: Task) => void;
+  onCompleted: (taskStatus: Task) => void;
+  onFailed: (taskStatus: Task) => void;
+  onTimeout: () => void;
+  onError: (error: unknown) => void;
+  isMounted: () => boolean;
+}
+
+function startTaskPolling(
+  taskId: string,
+  callbacks: PollCallbacks,
+  pollInterval = 2000,
+  maxAttempts = 150,
+): void {
+  let attempts = 0;
+
+  const pollStatus = async (): Promise<void> => {
+    if (!callbacks.isMounted()) return;
+    attempts++;
+
+    try {
+      const taskStatus = await backendApi.getTaskStatus(taskId);
+      callbacks.onStatusUpdate(taskStatus);
+
+      if (taskStatus.status === 'completed') {
+        callbacks.onCompleted(taskStatus);
+        return;
+      }
+
+      if (taskStatus.status === 'failed') {
+        callbacks.onFailed(taskStatus);
+        return;
+      }
+
+      if (attempts >= maxAttempts) {
+        callbacks.onTimeout();
+        return;
+      }
+
+      if (callbacks.isMounted()) {
+        setTimeout(pollStatus, pollInterval);
+      }
+    } catch (error) {
+      callbacks.onError(error);
+    }
+  };
+
+  setTimeout(pollStatus, pollInterval);
+}
+
 export default function Profile() {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
@@ -64,103 +130,84 @@ export default function Profile() {
     };
   }, []);
 
+  const buildPollCallbacks = useCallback((
+    toastFn: typeof toast,
+    navigateFn: typeof navigate,
+  ): PollCallbacks => ({
+    isMounted: () => isMountedRef.current,
+    onStatusUpdate: (taskStatus) => {
+      setSearchTask((prev) => ({
+        ...prev,
+        ...taskStatus,
+        task_type: 'insert_leads',
+        started_at: prev?.started_at || new Date().toISOString(),
+      }));
+    },
+    onCompleted: (taskStatus) => {
+      setIsSearching(false);
+      setSearchTask((prev) => ({
+        ...prev,
+        ...taskStatus,
+        task_type: 'insert_leads',
+        completed_at: new Date().toISOString(),
+      }));
+      toastFn({
+        title: "Search completed",
+        description: taskStatus.message || "Job opportunities have been found and added to your leads.",
+      });
+      setTimeout(() => navigateFn('/jobs'), 1500);
+    },
+    onFailed: (taskStatus) => {
+      setIsSearching(false);
+      setSearchTask((prev) => ({
+        ...prev,
+        ...taskStatus,
+        task_type: 'insert_leads',
+        completed_at: new Date().toISOString(),
+      }));
+      toastFn({
+        title: "Search failed",
+        description: taskStatus.message || "Failed to search for opportunities.",
+        variant: "destructive",
+      });
+    },
+    onTimeout: () => {
+      setIsSearching(false);
+      setSearchTask((prev) => prev ? {
+        ...prev,
+        status: 'failed',
+        message: 'Search timeout - taking longer than expected',
+        completed_at: new Date().toISOString(),
+      } : null);
+    },
+    onError: (error) => {
+      setIsSearching(false);
+      setSearchTask((prev) => prev ? {
+        ...prev,
+        status: 'failed',
+        message: error instanceof Error ? error.message : 'Failed to check search status',
+        completed_at: new Date().toISOString(),
+      } : null);
+    },
+  }), []);
+
   // Check for running tasks on mount and resume polling if found
   useEffect(() => {
     const checkRunningTasks = async () => {
       try {
         const runningTasks = await backendApi.getRunningTasks('insert_leads');
-        if (runningTasks.length > 0 && isMountedRef.current) {
-          const task = runningTasks[0];
-          // Resume the task UI state
-          const resumedTask: Task = {
-            ...task,
-            task_type: 'insert_leads',
-            started_at: task.started_at || task.created_at || new Date().toISOString(),
-          };
-          setSearchTask(resumedTask);
-          setIsSearching(true);
+        if (runningTasks.length === 0 || !isMountedRef.current) return;
 
-          // Start polling for status updates
-          const pollInterval = 2000;
-          const maxAttempts = 150;
-          let attempts = 0;
+        const task = runningTasks[0];
+        const resumedTask: Task = {
+          ...task,
+          task_type: 'insert_leads',
+          started_at: task.started_at || task.created_at || new Date().toISOString(),
+        };
+        setSearchTask(resumedTask);
+        setIsSearching(true);
 
-          const pollStatus = async (): Promise<void> => {
-            if (!isMountedRef.current) return;
-            attempts++;
-
-            try {
-              const taskStatus = await backendApi.getTaskStatus(task.task_id);
-
-              setSearchTask((prev) => ({
-                ...prev,
-                ...taskStatus,
-                task_type: 'insert_leads',
-                started_at: prev?.started_at || new Date().toISOString(),
-              }));
-
-              if (taskStatus.status === 'completed') {
-                setIsSearching(false);
-                setSearchTask((prev) => ({
-                  ...prev,
-                  ...taskStatus,
-                  task_type: 'insert_leads',
-                  completed_at: new Date().toISOString(),
-                }));
-                toast({
-                  title: "Search completed",
-                  description: taskStatus.message || "Job opportunities have been found and added to your leads.",
-                });
-                setTimeout(() => {
-                  navigate('/jobs');
-                }, 1500);
-                return;
-              }
-
-              if (taskStatus.status === 'failed') {
-                setIsSearching(false);
-                setSearchTask((prev) => ({
-                  ...prev,
-                  ...taskStatus,
-                  task_type: 'insert_leads',
-                  completed_at: new Date().toISOString(),
-                }));
-                toast({
-                  title: "Search failed",
-                  description: taskStatus.message || "Failed to search for opportunities.",
-                  variant: "destructive",
-                });
-                return;
-              }
-
-              if (attempts >= maxAttempts) {
-                setIsSearching(false);
-                setSearchTask((prev) => prev ? {
-                  ...prev,
-                  status: 'failed',
-                  message: 'Search timeout - taking longer than expected',
-                  completed_at: new Date().toISOString(),
-                } : null);
-                return;
-              }
-
-              if (isMountedRef.current) {
-                setTimeout(pollStatus, pollInterval);
-              }
-            } catch (error) {
-              setIsSearching(false);
-              setSearchTask((prev) => prev ? {
-                ...prev,
-                status: 'failed',
-                message: error instanceof Error ? error.message : 'Failed to check search status',
-                completed_at: new Date().toISOString(),
-              } : null);
-            }
-          };
-
-          // Start polling
-          setTimeout(pollStatus, pollInterval);
-        }
+        startTaskPolling(task.task_id, buildPollCallbacks(toast, navigate));
       } catch (error) {
         // Silently fail - not critical if we can't check for running tasks
         console.error('Failed to check for running tasks:', error);
@@ -388,8 +435,7 @@ export default function Profile() {
       return;
     }
 
-    const hasSearchCriteria = (profile.technos && profile.technos.length > 0) || profile.job_title;
-    if (!hasSearchCriteria) {
+    if (!hasValidSearchCriteria(profile)) {
       toast({
         title: "Skills or job title required",
         description: "Please add skills or a job title to your profile before searching for opportunities.",
@@ -402,19 +448,10 @@ export default function Profile() {
     setSearchTask(null);
 
     try {
-      // Build job_params from technos or job_title
-      const jobParams: string[] = [];
-      if (profile.technos && profile.technos.length > 0) {
-        jobParams.push(...profile.technos);
-      }
-      if (profile.job_title) {
-        jobParams.push(profile.job_title);
-      }
-
       const request: InsertLeadsRequest = {
         source: 'jsearch',
         location: profile.location,
-        job_params: jobParams,
+        job_params: buildJobParams(profile),
       };
 
       toast({
@@ -422,10 +459,8 @@ export default function Profile() {
         description: "Searching for job opportunities matching your profile...",
       });
 
-      // Start the lead insertion task
       const task = await backendApi.insertLeads(request);
 
-      // Set initial task state with started_at
       const initialTask: Task = {
         ...task,
         task_type: 'insert_leads',
@@ -433,105 +468,26 @@ export default function Profile() {
       };
       setSearchTask(initialTask);
 
-      // Poll for task status
-      const pollInterval = 2000; // 2 seconds
-      const maxAttempts = 150; // 5 minutes max (150 * 2s = 300s)
-      let attempts = 0;
-
-      const pollStatus = async (): Promise<void> => {
-        // Check if component is still mounted before polling
-        if (!isMountedRef.current) return;
-
-        attempts++;
-
-        try {
-          const taskStatus = await backendApi.getTaskStatus(task.task_id);
-
-          // Update searchTask with latest status
-          setSearchTask((prev) => ({
-            ...prev,
-            ...taskStatus,
-            task_type: 'insert_leads',
-            started_at: prev?.started_at || new Date().toISOString(),
-          }));
-
-          if (taskStatus.status === 'completed') {
-            setIsSearching(false);
-            // Update with completed_at
-            setSearchTask((prev) => ({
-              ...prev,
-              ...taskStatus,
-              task_type: 'insert_leads',
-              completed_at: new Date().toISOString(),
-            }));
-            toast({
-              title: "Search completed",
-              description: taskStatus.message || "Job opportunities have been found and added to your leads.",
-            });
-            // Navigate to jobs page after a short delay to show completion
-            setTimeout(() => {
-              navigate('/jobs');
-            }, 1500);
-            return;
-          }
-
-          if (taskStatus.status === 'failed') {
-            setIsSearching(false);
-            // Update with completed_at for failed state
-            setSearchTask((prev) => ({
-              ...prev,
-              ...taskStatus,
-              task_type: 'insert_leads',
-              completed_at: new Date().toISOString(),
-            }));
-            toast({
-              title: "Search failed",
-              description: taskStatus.message || "Failed to search for opportunities. Please try again.",
-              variant: "destructive",
-            });
-            return;
-          }
-
-          // Still processing - continue polling
-          if (attempts >= maxAttempts) {
-            setIsSearching(false);
-            setSearchTask((prev) => prev ? {
-              ...prev,
-              status: 'failed',
-              message: 'Search timeout - taking longer than expected',
-              completed_at: new Date().toISOString(),
-            } : null);
-            toast({
-              title: "Search timeout",
-              description: "The search is taking longer than expected. Please check the jobs page later.",
-              variant: "destructive",
-            });
-            return;
-          }
-
-          // Schedule next poll only if component is still mounted
-          if (isMountedRef.current) {
-            setTimeout(pollStatus, pollInterval);
-          }
-        } catch (error) {
-          setIsSearching(false);
-          setSearchTask((prev) => prev ? {
-            ...prev,
-            status: 'failed',
-            message: error instanceof Error ? error.message : 'Failed to check search status',
-            completed_at: new Date().toISOString(),
-          } : null);
+      const baseCallbacks = buildPollCallbacks(toast, navigate);
+      startTaskPolling(task.task_id, {
+        ...baseCallbacks,
+        onTimeout: () => {
+          baseCallbacks.onTimeout();
+          toast({
+            title: "Search timeout",
+            description: "The search is taking longer than expected. Please check the jobs page later.",
+            variant: "destructive",
+          });
+        },
+        onError: (error) => {
+          baseCallbacks.onError(error);
           toast({
             title: "Error checking status",
             description: error instanceof Error ? error.message : "Failed to check search status.",
             variant: "destructive",
           });
-        }
-      };
-
-      // Start polling
-      setTimeout(pollStatus, pollInterval);
-
+        },
+      });
     } catch (error) {
       setIsSearching(false);
       setSearchTask(null);
@@ -576,7 +532,34 @@ export default function Profile() {
         {/* Header */}
         <FadeIn className="mb-8 flex justify-center items-start">
           <AnimatePresence mode="wait">
-            {!isEditing ? (
+            {isEditing ? (
+              <motion.div
+                key="edit-actions"
+                initial={prefersReducedMotion ? false : { opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={transitions.smooth}
+                className="flex gap-2"
+              >
+                <AnimatedButton
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={updateProfileMutation.isPending}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </AnimatedButton>
+                <AnimatedButton
+                  onClick={handleSubmit(onSubmit)}
+                  disabled={updateProfileMutation.isPending}
+                  className="bg-gradient-primary text-white"
+                  animationStyle="glow"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {updateProfileMutation.isPending ? 'Saving...' : 'Save'}
+                </AnimatedButton>
+              </motion.div>
+            ) : (
               <motion.div
                 key="view-actions"
                 initial={prefersReducedMotion ? false : { opacity: 0, x: 20 }}
@@ -652,19 +635,19 @@ export default function Profile() {
                         This action cannot be undone. This will permanently delete:
                         <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />{' '}
                             Your profile information
                           </li>
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />{' '}
                             All saved job opportunities
                           </li>
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />{' '}
                             All companies and contacts
                           </li>
                           <li className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-destructive" />{' '}
                             All generated messages
                           </li>
                         </ul>
@@ -700,33 +683,6 @@ export default function Profile() {
                 >
                   <Edit3 className="h-4 w-4 mr-2" />
                   Edit Profile
-                </AnimatedButton>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="edit-actions"
-                initial={prefersReducedMotion ? false : { opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={transitions.smooth}
-                className="flex gap-2"
-              >
-                <AnimatedButton
-                  variant="outline"
-                  onClick={handleCancel}
-                  disabled={updateProfileMutation.isPending}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </AnimatedButton>
-                <AnimatedButton
-                  onClick={handleSubmit(onSubmit)}
-                  disabled={updateProfileMutation.isPending}
-                  className="bg-gradient-primary text-white"
-                  animationStyle="glow"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {updateProfileMutation.isPending ? 'Saving...' : 'Save'}
                 </AnimatedButton>
               </motion.div>
             )}
@@ -775,9 +731,10 @@ export default function Profile() {
                 <AnimatedCardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Job Title</label>
+                      <label htmlFor="job_title" className="text-sm font-medium">Job Title</label>
                       {isEditing ? (
                         <AnimatedInput
+                          id="job_title"
                           {...register('job_title')}
                           placeholder="e.g., Senior Full Stack Developer"
                         />
@@ -789,9 +746,10 @@ export default function Profile() {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Location</label>
+                      <label htmlFor="location" className="text-sm font-medium">Location</label>
                       {isEditing ? (
                         <AnimatedInput
+                          id="location"
                           {...register('location')}
                           placeholder="e.g., FR, Paris"
                         />
@@ -804,9 +762,10 @@ export default function Profile() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Professional Bio</label>
+                    <label htmlFor="bio" className="text-sm font-medium">Professional Bio</label>
                     {isEditing ? (
                       <Textarea
+                        id="bio"
                         {...register('bio')}
                         placeholder="Tell us about your professional background, skills, and interests..."
                         rows={4}
@@ -846,7 +805,7 @@ export default function Profile() {
                       <AnimatePresence mode="popLayout">
                         {watchedExperience.map((exp, index) => (
                           <motion.div
-                            key={index}
+                            key={`${exp.company}-${exp.position}-${index}`}
                             initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
@@ -912,7 +871,7 @@ export default function Profile() {
                       {profile?.work_experience && profile.work_experience.length > 0 ? (
                         profile.work_experience.map((exp, index) => (
                           <motion.div
-                            key={index}
+                            key={`${exp.company}-${exp.position}-${index}`}
                             variants={prefersReducedMotion ? undefined : staggerItemVariants}
                             className="flex space-x-4"
                           >
@@ -972,7 +931,7 @@ export default function Profile() {
                           placeholder="Add a skill (e.g., React, Python, AWS...)"
                           value={newTechno}
                           onChange={(e) => setNewTechno(e.target.value)}
-                          onKeyPress={handleTechnoKeyPress}
+                          onKeyDown={handleTechnoKeyPress}
                           className="flex-1"
                         />
                         <AnimatedButton type="button" onClick={addTechno} variant="outline" size="sm">
@@ -1026,9 +985,9 @@ export default function Profile() {
                             }
                           }}
                         >
-                          {profile.technos.map((techno, index) => (
+                          {profile.technos.map((techno) => (
                             <motion.div
-                              key={index}
+                              key={techno}
                               variants={prefersReducedMotion ? undefined : staggerItemVariants}
                             >
                               <Badge variant="outline" className="flex items-center gap-1">

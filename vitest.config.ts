@@ -12,9 +12,23 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html'],
+      reporter: ['text', 'html', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}', 'src/test/**'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.spec.{ts,tsx}',
+        'src/test/**',
+        'src/vite-env.d.ts',
+        'src/main.tsx',
+        'src/App.tsx',
+        'src/index.css',
+        'src/App.css',
+        'src/domain/entities/**',
+        // Auto-generated shadcn/ui components (third-party library code)
+        'src/application/components/ui/**',
+        'src/application/components/animated/index.ts',
+        'src/assets/icons/**',
+      ],
     },
   },
   resolve: {

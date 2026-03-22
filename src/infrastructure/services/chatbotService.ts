@@ -3,17 +3,13 @@ import { toast } from "../../application/hooks/use-toast";
 import { ConfigRepository } from "./configRepository";
 
 declare global {
-  interface Window {
-    mountChainlitWidget?: (config: { chainlitServer: string , accessToken: string}) => void;
-  }
+  // eslint-disable-next-line no-var
+  var mountChainlitWidget: ((config: { chainlitServer: string , accessToken: string}) => void) | undefined;
 }
 
 class ChatbotService {
   private readonly config = new ConfigRepository().getConfig();
   private isLoaded: boolean = false;
-
-  constructor() {
-  }
 
   /**
    * Fetch a new authentication token from the API
@@ -88,8 +84,8 @@ class ChatbotService {
    * Mount the chainlit widget with proper configuration
    */
   private async mountWidget(): Promise<void> {
-    if (window.mountChainlitWidget) {
-      window.mountChainlitWidget({
+    if (globalThis.mountChainlitWidget) {
+      globalThis.mountChainlitWidget({
         chainlitServer: `${(await this.config).chatbotUrl}/chainlit`,
         accessToken: (await this.getToken()).token
       });

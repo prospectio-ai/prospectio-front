@@ -27,7 +27,7 @@ export function ResumePreviewModal({
   onApply,
   extractedProfile,
   isApplying = false,
-}: ResumePreviewModalProps) {
+}: Readonly<ResumePreviewModalProps>) {
   if (!extractedProfile) return null;
 
   return (
@@ -95,7 +95,7 @@ export function ResumePreviewModal({
               {extractedProfile.work_experience && extractedProfile.work_experience.length > 0 ? (
                 <div className="space-y-4">
                   {extractedProfile.work_experience.map((exp: WorkExperience, index: number) => (
-                    <div key={index} className="p-3 border rounded-lg bg-muted/30">
+                    <div key={`${exp.company}-${exp.position}-${index}`} className="p-3 border rounded-lg bg-muted/30">
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="font-medium text-sm">{exp.position}</p>
@@ -132,8 +132,8 @@ export function ResumePreviewModal({
 
               {extractedProfile.technos && extractedProfile.technos.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {extractedProfile.technos.map((techno: string, index: number) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
+                  {extractedProfile.technos.map((techno: string) => (
+                    <Badge key={techno} variant="secondary" className="text-xs">
                       {techno}
                     </Badge>
                   ))}

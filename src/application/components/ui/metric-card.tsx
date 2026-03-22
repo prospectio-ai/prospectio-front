@@ -21,7 +21,7 @@ export function MetricCard({
   icon: Icon,
   trend,
   className,
-}: MetricCardProps) {
+}: Readonly<MetricCardProps>) {
   return (
     <Card className={cn(
       "gradient-card border-0 card-shadow transition-smooth hover:card-shadow-lg",

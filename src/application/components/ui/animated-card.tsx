@@ -80,7 +80,7 @@ AnimatedCardHeader.displayName = "AnimatedCardHeader";
 const AnimatedCardTitle = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
   <h3
     ref={ref}
     className={cn(
@@ -88,7 +88,9 @@ const AnimatedCardTitle = React.forwardRef<
       className
     )}
     {...props}
-  />
+  >
+    {children}
+  </h3>
 ));
 AnimatedCardTitle.displayName = "AnimatedCardTitle";
 

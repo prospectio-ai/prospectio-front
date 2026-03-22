@@ -148,8 +148,8 @@ export default function Companies() {
                       <div className="space-y-2">
                         <p className="text-sm font-medium">Opportunities:</p>
                         <div className="flex flex-wrap gap-1">
-                          {company.opportunities.slice(0, 3).map((opportunity, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
+                          {company.opportunities.slice(0, 3).map((opportunity) => (
+                            <Badge key={opportunity} variant="outline" className="text-xs">
                               {opportunity}
                             </Badge>
                           ))}

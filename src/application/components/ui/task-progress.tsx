@@ -37,7 +37,7 @@ export function TaskProgress({
   showElapsedTime = true,
   showItemsCounter = true,
   taskLabel,
-}: TaskProgressProps) {
+}: Readonly<TaskProgressProps>) {
   const prefersReducedMotion = useReducedMotion();
   const [elapsedTime, setElapsedTime] = React.useState(0);
   const startTimeRef = React.useRef<number | null>(null);
