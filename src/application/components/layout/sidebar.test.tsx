@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test/utils/render';
 import { Sidebar } from './sidebar';
@@ -33,9 +33,11 @@ describe('Sidebar', () => {
     await user.click(collapseButton);
 
     // Menu title and nav labels should be hidden when collapsed
-    expect(screen.queryByText('Menu')).not.toBeInTheDocument();
-    expect(screen.queryByText('Profile')).not.toBeInTheDocument();
-    expect(screen.queryByText('Prospectio v1.0')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('Menu')).not.toBeInTheDocument();
+      expect(screen.queryByText('Profile')).not.toBeInTheDocument();
+      expect(screen.queryByText('Prospectio v1.0')).not.toBeInTheDocument();
+    });
   });
 
   it('expands the sidebar when toggle button is clicked again', async () => {
@@ -46,12 +48,16 @@ describe('Sidebar', () => {
 
     // Collapse
     await user.click(toggleButton);
-    expect(screen.queryByText('Menu')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('Menu')).not.toBeInTheDocument();
+    });
 
     // Expand
     await user.click(toggleButton);
-    expect(screen.getByText('Menu')).toBeInTheDocument();
-    expect(screen.getByText('Profile')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Menu')).toBeInTheDocument();
+      expect(screen.getByText('Profile')).toBeInTheDocument();
+    });
   });
 
   it('renders navigation links with correct hrefs', () => {
