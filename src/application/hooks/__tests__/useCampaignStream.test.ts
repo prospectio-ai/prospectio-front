@@ -71,10 +71,11 @@ describe('useCampaignStream', () => {
       expect(result.current.result).toBeNull();
     });
 
-    it('should provide startStream, stopStream, and reset functions', () => {
+    it('should provide startStream, retryStream, stopStream, and reset functions', () => {
       const { result } = renderHook(() => useCampaignStream());
 
       expect(typeof result.current.startStream).toBe('function');
+      expect(typeof result.current.retryStream).toBe('function');
       expect(typeof result.current.stopStream).toBe('function');
       expect(typeof result.current.reset).toBe('function');
     });
@@ -445,6 +446,140 @@ describe('useCampaignStream', () => {
       expect(result.current.error).toBeNull();
       expect(result.current.isCompleted).toBe(false);
       expect(result.current.result).toBeNull();
+    });
+  });
+
+  describe('retryStream', () => {
+    it('should set isStreaming to true when starting retry', async () => {
+      const events = [
+        createSSEEvent('campaign_started', { campaign_id: 'camp-retry' }),
+        createSSEEvent('campaign_completed', { campaign_id: 'camp-retry', successful: 1, failed: 0, total_contacts: 1 }),
+      ];
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        body: createMockReadableStream(events),
+      });
+
+      const { result } = renderHook(() => useCampaignStream());
+
+      act(() => {
+        result.current.retryStream('camp-retry');
+      });
+
+      expect(result.current.isStreaming).toBe(true);
+    });
+
+    it('should call the retry endpoint with POST and no JSON body', async () => {
+      const events = [
+        createSSEEvent('campaign_started', { campaign_id: 'camp-retry' }),
+        createSSEEvent('campaign_completed', { campaign_id: 'camp-retry', successful: 1, failed: 0, total_contacts: 1 }),
+      ];
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        body: createMockReadableStream(events),
+      });
+
+      const { result } = renderHook(() => useCampaignStream());
+
+      await act(async () => {
+        await result.current.retryStream('camp-retry');
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/prospectio/rest/v1/campaigns/camp-retry/retry/stream',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Accept': 'text/event-stream',
+          }),
+        })
+      );
+
+      // Should NOT have Content-Type or body (no JSON body for retry)
+      const callArgs = mockFetch.mock.calls[0][1];
+      expect(callArgs.body).toBeUndefined();
+      expect(callArgs.headers['Content-Type']).toBeUndefined();
+    });
+
+    it('should process SSE events from retry stream like startStream', async () => {
+      const events = [
+        createSSEEvent('campaign_started', { campaign_id: 'camp-retry' }),
+        createSSEEvent('progress_update', {
+          campaign_id: 'camp-retry',
+          current: 1,
+          total: 2,
+          percentage: 50,
+          current_contact_name: 'Retry Contact',
+        }),
+        createSSEEvent('message_generated', {
+          message_id: 'msg-retry-001',
+          campaign_id: 'camp-retry',
+          contact_id: 'c-retry-001',
+          contact_name: 'Retry Contact',
+          subject: 'Retried Subject',
+          message: 'Retried body',
+          status: 'success',
+          created_at: '2025-01-10T12:00:00Z',
+        }),
+        createSSEEvent('campaign_completed', {
+          campaign_id: 'camp-retry',
+          successful: 1,
+          failed: 1,
+          total_contacts: 2,
+        }),
+      ];
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        body: createMockReadableStream(events),
+      });
+
+      const onComplete = vi.fn();
+      const { result } = renderHook(() => useCampaignStream({ onComplete }));
+
+      await act(async () => {
+        await result.current.retryStream('camp-retry');
+      });
+
+      await waitFor(() => {
+        expect(result.current.isCompleted).toBe(true);
+      });
+
+      expect(result.current.campaignId).toBe('camp-retry');
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0].contact_name).toBe('Retry Contact');
+      expect(result.current.result).toEqual({
+        campaignId: 'camp-retry',
+        successful: 1,
+        failed: 1,
+        totalContacts: 2,
+      });
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle HTTP errors from retry endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        json: vi.fn().mockResolvedValue({ detail: 'Campaign not found' }),
+      });
+
+      const onError = vi.fn();
+      const { result } = renderHook(() => useCampaignStream({ onError }));
+
+      await act(async () => {
+        await result.current.retryStream('nonexistent-id');
+      });
+
+      await waitFor(() => {
+        expect(result.current.error).toBe('Campaign not found');
+        expect(result.current.isStreaming).toBe(false);
+      });
+
+      expect(onError).toHaveBeenCalledWith('Campaign not found');
     });
   });
 

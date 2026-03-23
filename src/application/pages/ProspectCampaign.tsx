@@ -20,6 +20,7 @@ import {
   Calendar,
   Clock,
   Zap,
+  RotateCcw,
 } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { AnimatedPage } from '@/application/components/layout/animated-page';
@@ -98,6 +99,7 @@ export default function ProspectCampaign() {
     isCompleted: streamCompleted,
     result: streamResult,
     startStream,
+    retryStream,
   } = useCampaignStream({
     onComplete: (result) => {
       toast({
@@ -232,6 +234,15 @@ export default function ProspectCampaign() {
     toast({
       title: "Campaign Generation Started",
       description: `Creating "${campaignName}" with personalized messages...`,
+    });
+  };
+
+  const handleRetryCampaign = () => {
+    if (!selectedCampaign) return;
+    retryStream(selectedCampaign.id);
+    toast({
+      title: "Retry Started",
+      description: `Retrying failed messages for "${selectedCampaign.name}"...`,
     });
   };
 
@@ -490,6 +501,20 @@ export default function ProspectCampaign() {
                           <div className="text-xs text-muted-foreground uppercase">Failed</div>
                         </div>
                       </div>
+                      {/* Retry Failed Button */}
+                      {selectedCampaign.failed > 0 &&
+                        (selectedCampaign.status === 'completed' || selectedCampaign.status === 'failed') &&
+                        !isStreaming && (
+                          <AnimatedButton
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRetryCampaign}
+                            className="ml-4 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
+                          >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Retry failed
+                          </AnimatedButton>
+                      )}
                     </div>
                   </div>
                 </AnimatedCardContent>

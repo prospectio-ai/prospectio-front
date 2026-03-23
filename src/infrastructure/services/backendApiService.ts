@@ -297,6 +297,15 @@ export class BackendApiService {
   }
 
   /**
+   * Get the SSE stream URL for retrying failed campaign messages
+   * @param campaignId - The campaign ID to retry
+   * @returns Full URL for the retry stream endpoint
+   */
+  async getRetryCampaignStreamUrl(campaignId: string): Promise<string> {
+    return `${(await this.config).backendUrl}/prospectio/rest/v1/campaigns/${campaignId}/retry/stream`;
+  }
+
+  /**
    * Generate campaign messages for all new contacts with a specific campaign name
    * @param name - The name for the new campaign
    * @returns Task object with task_id to poll for status
