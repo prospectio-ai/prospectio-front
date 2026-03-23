@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test/utils/render';
 import ProspectCampaign from './ProspectCampaign';
 import { http, HttpResponse } from 'msw';
@@ -17,6 +18,7 @@ let mockStreamState = {
   isCompleted: false,
   result: null as any,
   startStream: vi.fn(),
+  retryStream: vi.fn(),
   stopStream: vi.fn(),
   reset: vi.fn(),
 };
@@ -52,6 +54,7 @@ describe('ProspectCampaign', () => {
       isCompleted: false,
       result: null,
       startStream: vi.fn(),
+      retryStream: vi.fn(),
       stopStream: vi.fn(),
       reset: vi.fn(),
     };
@@ -450,6 +453,220 @@ describe('ProspectCampaign', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Generating message 3\/10 for John Doe/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Retry failed button', () => {
+    const campaignWithFailures = {
+      campaigns: [
+        {
+          id: 'camp-retry',
+          name: 'Retry Campaign',
+          status: 'completed' as const,
+          created_at: '2025-01-15T10:00:00Z',
+          updated_at: '2025-01-15T12:00:00Z',
+          total_contacts: 10,
+          successful: 7,
+          failed: 3,
+        },
+      ],
+      pages: 1,
+    };
+
+    const campaignNoFailures = {
+      campaigns: [
+        {
+          id: 'camp-ok',
+          name: 'Perfect Campaign',
+          status: 'completed' as const,
+          created_at: '2025-01-15T10:00:00Z',
+          updated_at: '2025-01-15T12:00:00Z',
+          total_contacts: 10,
+          successful: 10,
+          failed: 0,
+        },
+      ],
+      pages: 1,
+    };
+
+    const campaignFailed = {
+      campaigns: [
+        {
+          id: 'camp-fail',
+          name: 'Failed Campaign',
+          status: 'failed' as const,
+          created_at: '2025-01-15T10:00:00Z',
+          updated_at: '2025-01-15T12:00:00Z',
+          total_contacts: 10,
+          successful: 5,
+          failed: 5,
+        },
+      ],
+      pages: 1,
+    };
+
+    const campaignInProgress = {
+      campaigns: [
+        {
+          id: 'camp-ip',
+          name: 'In Progress Campaign',
+          status: 'in_progress' as const,
+          created_at: '2025-01-15T10:00:00Z',
+          updated_at: '2025-01-15T12:00:00Z',
+          total_contacts: 10,
+          successful: 3,
+          failed: 2,
+        },
+      ],
+      pages: 1,
+    };
+
+    async function selectCampaign() {
+      const user = userEvent.setup();
+      const trigger = screen.getByRole('combobox');
+      await user.click(trigger);
+      await waitFor(() => {
+        const options = screen.getAllByRole('option');
+        expect(options.length).toBeGreaterThan(0);
+      });
+      const options = screen.getAllByRole('option');
+      await user.click(options[0]);
+    }
+
+    it('should show Retry failed button when campaign has failures and status is completed', async () => {
+      server.use(
+        http.get(`${BASE_URL}/campaigns/:offset/:limit`, () => {
+          return HttpResponse.json(campaignWithFailures);
+        }),
+        http.get(`${BASE_URL}/contacts/new/:offset/:limit`, () => {
+          return HttpResponse.json({ contacts: [], pages: 0 });
+        }),
+        http.get(`${BASE_URL}/campaigns/:campaignId/messages/:offset/:limit`, () => {
+          return HttpResponse.json([]);
+        })
+      );
+
+      renderWithProviders(<ProspectCampaign />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+      });
+
+      await selectCampaign();
+
+      await waitFor(() => {
+        expect(screen.getByText('Retry failed')).toBeInTheDocument();
+      });
+    });
+
+    it('should show Retry failed button when campaign status is failed', async () => {
+      server.use(
+        http.get(`${BASE_URL}/campaigns/:offset/:limit`, () => {
+          return HttpResponse.json(campaignFailed);
+        }),
+        http.get(`${BASE_URL}/contacts/new/:offset/:limit`, () => {
+          return HttpResponse.json({ contacts: [], pages: 0 });
+        }),
+        http.get(`${BASE_URL}/campaigns/:campaignId/messages/:offset/:limit`, () => {
+          return HttpResponse.json([]);
+        })
+      );
+
+      renderWithProviders(<ProspectCampaign />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+      });
+
+      await selectCampaign();
+
+      await waitFor(() => {
+        expect(screen.getByText('Retry failed')).toBeInTheDocument();
+      });
+    });
+
+    it('should not show Retry failed button when campaign has zero failures', async () => {
+      server.use(
+        http.get(`${BASE_URL}/campaigns/:offset/:limit`, () => {
+          return HttpResponse.json(campaignNoFailures);
+        }),
+        http.get(`${BASE_URL}/contacts/new/:offset/:limit`, () => {
+          return HttpResponse.json({ contacts: [], pages: 0 });
+        }),
+        http.get(`${BASE_URL}/campaigns/:campaignId/messages/:offset/:limit`, () => {
+          return HttpResponse.json([]);
+        })
+      );
+
+      renderWithProviders(<ProspectCampaign />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+      });
+
+      await selectCampaign();
+
+      // Campaign name appears in select trigger and detail header
+      await waitFor(() => {
+        expect(screen.getAllByText('Perfect Campaign').length).toBeGreaterThanOrEqual(1);
+      });
+
+      expect(screen.queryByText('Retry failed')).not.toBeInTheDocument();
+    });
+
+    it('should not show Retry failed button when campaign is in_progress', async () => {
+      server.use(
+        http.get(`${BASE_URL}/campaigns/:offset/:limit`, () => {
+          return HttpResponse.json(campaignInProgress);
+        }),
+        http.get(`${BASE_URL}/contacts/new/:offset/:limit`, () => {
+          return HttpResponse.json({ contacts: [], pages: 0 });
+        }),
+        http.get(`${BASE_URL}/campaigns/:campaignId/messages/:offset/:limit`, () => {
+          return HttpResponse.json([]);
+        })
+      );
+
+      renderWithProviders(<ProspectCampaign />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+      });
+
+      await selectCampaign();
+
+      // Campaign name appears in select trigger and detail header
+      await waitFor(() => {
+        expect(screen.getAllByText('In Progress Campaign').length).toBeGreaterThanOrEqual(1);
+      });
+
+      expect(screen.queryByText('Retry failed')).not.toBeInTheDocument();
+    });
+
+    it('should not show Retry failed button during streaming', async () => {
+      mockStreamState = {
+        ...mockStreamState,
+        isStreaming: true,
+        campaignId: 'camp-retry',
+      };
+
+      server.use(
+        http.get(`${BASE_URL}/campaigns/:offset/:limit`, () => {
+          return HttpResponse.json(campaignWithFailures);
+        }),
+        http.get(`${BASE_URL}/contacts/new/:offset/:limit`, () => {
+          return HttpResponse.json({ contacts: [], pages: 0 });
+        })
+      );
+
+      renderWithProviders(<ProspectCampaign />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
+      });
+
+      // During streaming, the campaign detail section is hidden (isGenerating check)
+      expect(screen.queryByText('Retry failed')).not.toBeInTheDocument();
     });
   });
 });

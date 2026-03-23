@@ -308,6 +308,83 @@ export function useCampaignStream(options: UseCampaignStreamOptions = {}) {
     }
   }, [cancelReader, handleEvent]);
 
+  const retryStream = useCallback(async (campaignId: string) => {
+    // Cancel existing reader and abort controller
+    cancelReader();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    // Reset state with streaming flag
+    setState({ ...INITIAL_STATE, isStreaming: true });
+
+    // Wait for config if not loaded
+    if (!configRef.current) {
+      const config = await new ConfigRepository().getConfig();
+      configRef.current = config;
+    }
+
+    const baseUrl = configRef.current.backendUrl;
+    const url = `${baseUrl}/prospectio/rest/v1/campaigns/${campaignId}/retry/stream`;
+    console.log('[SSE] Starting retry stream to:', url);
+
+    try {
+      const response = await fetch(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            'Accept': 'text/event-stream',
+          },
+          signal: abortControllerRef.current.signal,
+        }
+      );
+
+      console.log('[SSE] Retry response status:', response.status, response.ok);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Failed to start campaign retry stream' }));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('ReadableStream not supported');
+      }
+
+      // Store reader reference for cleanup
+      readerRef.current = reader;
+
+      const processStream = async () => {
+        try {
+          await readSSEStream(reader, handleEvent);
+        } catch (streamError) {
+          if (streamError instanceof Error && streamError.name === 'AbortError') {
+            return;
+          }
+          console.error('Retry stream error:', streamError);
+          const errorMsg = getErrorMessage(streamError, 'Retry stream error');
+          setState(prev => ({ ...prev, isStreaming: false, error: errorMsg }));
+          optionsRef.current.onError?.(errorMsg);
+        } finally {
+          readerRef.current = null;
+        }
+      };
+
+      processStream();
+
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      console.error('Failed to start campaign retry stream:', error);
+      const errorMsg = getErrorMessage(error, 'Failed to start retry stream');
+      setState(prev => ({ ...prev, isStreaming: false, error: errorMsg }));
+      optionsRef.current.onError?.(errorMsg);
+    }
+  }, [cancelReader, handleEvent]);
+
   const stopStream = useCallback(() => {
     cancelReader();
     if (abortControllerRef.current) {
@@ -336,6 +413,7 @@ export function useCampaignStream(options: UseCampaignStreamOptions = {}) {
   return {
     ...state,
     startStream,
+    retryStream,
     stopStream,
     reset,
   };
