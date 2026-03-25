@@ -29,7 +29,8 @@ jobs:
         run: bun run test --coverage
 
       - name: Trivy FS Scan (report)
-        uses: aquasecurity/trivy-action@master
+        # v0.35.0 - pinned by SHA for supply chain security
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -37,9 +38,11 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
           exit-code: '0'
           trivy-config: trivy.yaml
+          trivy-version: 'v0.69.3'
 
       - name: Trivy FS Scan (CRITICAL gate)
-        uses: aquasecurity/trivy-action@master
+        # v0.35.0 - pinned by SHA for supply chain security
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -47,6 +50,7 @@ jobs:
           severity: 'CRITICAL'
           exit-code: '1'
           trivy-config: trivy.yaml
+          trivy-version: 'v0.69.3'
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
